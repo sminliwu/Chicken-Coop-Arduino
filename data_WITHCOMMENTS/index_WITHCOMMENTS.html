@@ -1,0 +1,41 @@
+<!-- webpage hosting status + manual controls connection -->
+
+<!DOCTYPE html>
+<html lang="">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FEATHERS 4EVAH</title> 
+  </head>
+  <body>
+  	  <h1 id='flock'>The flock is: ?</h1>
+	  <h1 id='door-status'>Run door: ?</h1>
+	  <div id='web-stats'>
+		<span id='time'>Time: ?</span> | 
+		<span id='date'>Date: ?</span>
+		<div id='sunrise-sunset'><h2>Sunrise/Sunset: ?</h2></div>
+	  </div>
+	  <div id='door-mode'><h2 id='door-mode'>Mode: ?</h2></div>
+	  
+	  	<button type="submit" id="manual" value="manual">Switch to MANUAL</button>
+	  	<br>
+	  
+	  <div id='door-controls' hidden>
+	  	<p>Move motor:</p>
+		<button type="submit" id="open" value="open">Open</button>
+		<br>
+	  	<button type="submit" id="close" value="close">Close</button>
+	  	<br>
+	  	<p>Set status:</p>
+	  	<button type="submit" id="set-open" value="set-open">Door is OPEN</button>
+	  	<button type="submit" id="set-close" value="set-close">Door is CLOSED</button>
+	  </div>
+	  <button type="submit" id="google" value="google">Google?</button>
+
+	  
+    <!-- scripts from external web servers -->
+	<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+	<!-- Scripts in ESP file system -->
+	<script src="script_WITHCOMMENTS.js"></script>
+  </body>
+</html>

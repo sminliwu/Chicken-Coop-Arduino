@@ -1,40 +1,44 @@
-<!-- webpage hosting status + manual controls connection -->
-
-<!DOCTYPE html>
-<html lang="">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cluck Cluck Motherfuckers</title> 
-  </head>
-  <body>
-	  <div id='door-status'><h1>Door status: %STATUS%</h1></div>
-	  <div id='error'></div>
-	  <div id='web-stats'>
-		<span id='time'>Time: %TIME%</span> | 
-		<span id='date'>Date: %DATE%</span>
-		<div id='sunrise-sunset'><h2>Sunrise/Sunset: %SUNRISE%/%SUNSET%</h2></div>
-	  </div>
-	  <div id='door-mode'><h2>Mode: %MODE%</h2></div>
-	  
-	  	<button type="submit" id="manual" value="manual">Switch to MANUAL Mode</button>
-	  	<br>
-	  
-	  <div id='door-controls' hidden>
-	  	<p>Move motor:</p>
-		<button type="submit" id="open" value="open">Open</button>
+<!DOCTYPE html><html lang="">
+<head>
+	<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>FEATHERS 4EVAH</title> 
+</head>
+<body>
+	<h1 id='f-status'>
+		<label for="f">The flock is: </label><select id="f">
+			<option value="y">in the yard</option>
+			<option value="r">in the run</option>
+			<option value="c">in the coop for the night</option>
+		</select></h1>
+	<h1 id='d-status'>Run door: ?</h1>
+	<div id='td'>
+		<span id='time'>Time: ?</span><span> | </span><span id='date'>Date: ?</span>
+		<div id='sun'><h2>Sunrise/Sunset: ?</h2></div>
+	</div>
+	<h2 id='d-mode'>Mode: ?</h2>
+	<div id='c-manual'>
+		<p>Move motor:</p>
+		<button type="submit" id="o">Open</button>
 		<br>
-	  	<button type="submit" id="close" value="close">Close</button>
-	  	<br>
-	  	<p>Set status:</p>
-	  	<button type="submit" id="set-open" value="set-open">Door is OPEN</button>
-	  	<button type="submit" id="set-close" value="set-close">Door is CLOSED</button>
-	  </div>
-
-	  
-    <!-- scripts from external web servers -->
-	<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-	<!-- Scripts in ESP file system -->
-	<script src="script.js"></script>
-  </body>
+		<button type="submit" id="c">Close</button>
+		<br>
+		<p>Set status:</p>
+		<button type="submit" id="so">Door is OPEN</button>
+		<button type="submit" id="sc">Door is CLOSED</button><br><br>
+	</div>
+	<div id='c-auto'>
+		<label for="mo">Opening duration (s)</label><br>
+		<input type="number" id="mo"></input><br><br>
+		<label for="eo">Offset (min before)</label><br>
+		<input type="number" id="eo"></input><br><br>
+		<label for="mc">Closing duration (s)</label><br>
+		<input type="number" id="mc"></input><br><br>
+		<label for="ec">Offset (min after)</label><br>
+		<input type="number" id="ec"></input><br><br>
+	</div>
+	<button type="submit" id="mode">Switch to MANUAL</button><br><br>
+	<button type="submit" id="g">Google?</button>
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+<script src="script.js"></script>
+</body>
 </html>

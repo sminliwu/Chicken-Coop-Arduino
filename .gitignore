@@ -1,4 +1,4 @@
 *.sublime-project
 *.sublime-workspace
-google_client_id.json
-auth.ino
+*.json
+auth.h

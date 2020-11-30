@@ -2,11 +2,45 @@
  * - NTP and sunrise-sunset
  * - look at NTP documentation
  */
+// helper functions for sunrise and sunset states w/ offsets
+bool timeToOpen() {
+  // if it is [offset_open] minutes til sunrise
+  uint8_t openHour, openMin;
+  if (SUNRISE_MINUTE >= offset_open) { // eg 20 minutes before 6:45
+    openMin = SUNRISE_MINUTE - offset_open;
+    openHour = SUNRISE_HOUR;
+  } else {
+    openMin = (SUNRISE_MINUTE - offset_open) % 60;
+    openHour = SUNRISE_HOUR-1;
+  }
+  if (CURRENT_HOUR >= openHour && CURRENT_MINUTE >= openMin) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool timeToClose() {
+  // if it is [offset_close] minutes after sunset
+  uint8_t closeHour, closeMin;
+  closeMin = SUNSET_MINUTE + offset_close;
+  if (closeMin > 59) { // eg 20 minutes before 6:45
+    closeMin = closeMin % 60;
+    closeHour = SUNSET_HOUR+1;
+  } else {
+    closeHour = SUNSET_HOUR;
+  }
+  if (CURRENT_HOUR >= closeHour && CURRENT_MINUTE >= closeMin) {
+    return true;
+  } else {
+    return false;
+  }
+}
 
 void updateLocalTime() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
-    Serial.println("Failed to obtain time");
+    Serial.println(F("Failed to obtain time"));
     DATETIME_RDY = 0;
     return;
   }
@@ -17,11 +51,11 @@ void updateLocalTime() {
   CURRENT_HOUR = timeinfo.tm_hour;
   CURRENT_MINUTE = timeinfo.tm_min;
   DST_FLAG = timeinfo.tm_isdst;
-  prevTimeMillis = millis();
   
-  if (clientConnected) {
-    updateClients();
-  }
+  prevTimeMillis = currentMillis;
+  currentMillis = millis();
+
+  broadcastChange('t');
 }
 
 void getSunTimes() {
@@ -36,18 +70,18 @@ void getSunTimes() {
     DeserializationError err = deserializeJson(doc, payload);
 
     if (err) {
-      Serial.println("Parsing failed");
-      Serial.println(err.c_str());
+//      Serial.println("Parsing failed");
+//      Serial.println(err.c_str());
       return;
     }
     String sunrise = doc["results"]["sunrise"];
     String sunset = doc["results"]["sunset"];
-    //Serial.println(sunrise);
     parseUTCString(sunrise, sunriseVals);
     parseUTCString(sunset, sunsetVals);
-    //updateClients();
+    broadcastChange('n');
   } else {
-    Serial.println("Error on HTTP request");
+    Serial.print(F("Error on HTTP request: "));
+    Serial.println(httpCode);
   }
 }
 
@@ -78,37 +112,37 @@ void parseUTCString(String UTCString, int (&buffArray)[3]) {
   buffArray[2] = -1; // error when hour/min is negative
 }
 
-void printLocalTime() {
-  char DST;
-  if (DATETIME_RDY > 0) {
-    if (DST_FLAG > 0) { // if daylight savings,
-      DST = 'D';
-    } else { DST = 'S';}
-    Serial.printf("Today's date - %u/%u/%u\n", 
-      CURRENT_YEAR, CURRENT_MONTH, CURRENT_DATE);
-    Serial.printf("Local time - %u:%u M%cT\n", 
-      CURRENT_HOUR, CURRENT_MINUTE, DST);
-  } else {
-    Serial.printf("TIMEDATE ERRROR [%u] - %u/%u/%u %u:%u DST:%u\n", 
-      DATETIME_RDY, CURRENT_YEAR, CURRENT_MONTH, 
-      CURRENT_DATE, CURRENT_HOUR, CURRENT_MINUTE, 
-      DST_FLAG);
-  }
-}
-
-void printSunTimes() {
-  if (SUNRISE_RDY) {
-    Serial.printf("Sunrise time - %u:%u\n", 
-      SUNRISE_HOUR, SUNRISE_MINUTE);
-  } else {
-    Serial.printf("SUNRISE TIME ERROR [%u] - %u:%u\n", 
-      SUNRISE_RDY, SUNRISE_HOUR, SUNRISE_MINUTE);
-  }
-  if (SUNSET_RDY) {
-    Serial.printf("Sunset time - %u:%u\n", 
-      SUNSET_HOUR, SUNSET_MINUTE);
-  } else {
-    Serial.printf("SUNSET TIME ERROR [%u] - %u:%u\n", 
-      SUNSET_RDY, SUNSET_HOUR, SUNSET_MINUTE);
-  }
-}
+//void printLocalTime() {
+//  char DST;
+//  if (DATETIME_RDY > 0) {
+//    if (DST_FLAG > 0) { // if daylight savings,
+//      DST = 'D';
+//    } else { DST = 'S';}
+//    Serial.printf("Today's date - %u/%u/%u\n", 
+//      CURRENT_YEAR, CURRENT_MONTH, CURRENT_DATE);
+//    Serial.printf("Local time - %u:%u M%cT\n", 
+//      CURRENT_HOUR, CURRENT_MINUTE, DST);
+//  } else {
+//    Serial.printf("TIMEDATE ERRROR [%u] - %u/%u/%u %u:%u DST:%u\n", 
+//      DATETIME_RDY, CURRENT_YEAR, CURRENT_MONTH, 
+//      CURRENT_DATE, CURRENT_HOUR, CURRENT_MINUTE, 
+//      DST_FLAG);
+//  }
+//}
+//
+//void printSunTimes() {
+//  if (SUNRISE_RDY) {
+//    Serial.printf("Sunrise time - %u:%u\n", 
+//      SUNRISE_HOUR, SUNRISE_MINUTE);
+//  } else {
+//    Serial.printf("SUNRISE TIME ERROR [%u] - %u:%u\n", 
+//      SUNRISE_RDY, SUNRISE_HOUR, SUNRISE_MINUTE);
+//  }
+//  if (SUNSET_RDY) {
+//    Serial.printf("Sunset time - %u:%u\n", 
+//      SUNSET_HOUR, SUNSET_MINUTE);
+//  } else {
+//    Serial.printf("SUNSET TIME ERROR [%u] - %u:%u\n", 
+//      SUNSET_RDY, SUNSET_HOUR, SUNSET_MINUTE);
+//  }
+//}
