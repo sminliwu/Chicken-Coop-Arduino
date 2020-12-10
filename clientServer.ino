@@ -2,7 +2,7 @@
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
   switch (type) {
     case WStype_DISCONNECTED: // if a client disconnects
-      Serial.printf("[%u] Client disconnected :(\n", num);
+//      Serial.printf("[%u] Client disconnected :(\n", num);
       if (webSocket.connectedClients() == 0) { // if no more clients
         clientConnected = false;
       }
@@ -12,7 +12,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
           clientConnected = true;
         }
         IPAddress ip = webSocket.remoteIP(num);
-        Serial.printf("[%u] Connected from %d.%d.%d.%d\n", num, ip[0], ip[1], ip[2], ip[3]);
+//        Serial.printf("[%u] Connected from %d.%d.%d.%d\n", num, ip[0], ip[1], ip[2], ip[3]);
         updateWS('f');
         updateWS('d');
         updateWS('m');
@@ -25,21 +25,17 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
     case WStype_TEXT: { // if new text data is received
         //        Serial.printf("[%u] sent: %s\n", num, payload);
         if (payload[0] == 'o') {
-          // mouse down on open button
-          if (!motorOn) {
-            motorIntMillis = motorInterval_open * 1000;
-            motorStartMillis = millis();
-            motorTime = 0;
-          }
+          // clicked open button
+//          motorIntMillis = motorInterval_open * 1000;
+          motorStartMillis = millis();
+          motorTime = 0;
           motorOn = openDoor();
           updateDoorStatus();
         } else if (payload[0] == 'c') {
-          // mouse down on close button
-          if (!motorOn) {
-            motorIntMillis = motorInterval_close * 1000;
-            motorStartMillis = millis();
-            motorTime = 0;
-          }
+          // clicked close button
+//          motorIntMillis = motorInterval_close * 1000;
+          motorStartMillis = millis();
+          motorTime = 0;
           motorOn = closeDoor();
           updateDoorStatus();
         } else if (payload[0] == 'h') {
@@ -121,9 +117,9 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 //      case WStype_FRAGMENT_FIN:
 //        Serial.println("WStype_FRAGMENT_FIN");
 //        break;
-//      default:
+      default:
 //        Serial.println("what happened" + type);
-//        break;
+        break;
   }
 }
 
@@ -140,13 +136,18 @@ int postToGoogle(String data) {
 }
 
 void broadcastChange(char code) {
-  static const bool debug = false;
+  static const bool debug = true;
   switch(code) {
+    case 'g': // googleEnabled
+        if (!googleEnabled) {
+          updateGoogle(code);
+        }
     case 'c': // autoMode
     case 'm': // motorInterval
     case 'f': // flockStatus
-    case 'g': // googleEnabled
+    case 'd': // doorStatus, motorOn, or motorDir
     case 'e': // offset adjustment
+    case 'n': // sun times / date-time
         if (clientConnected) {
           updateWS(code);
         }
@@ -154,9 +155,7 @@ void broadcastChange(char code) {
           updateGoogle(code);
         }
       break;    
-    case 'd': // doorStatus, motorOn, or motorDir
     case 't': // time only
-    case 'n': // sun times / date-time
       if (clientConnected) {
         updateWS(code);
       }
@@ -165,13 +164,8 @@ void broadcastChange(char code) {
       }
       break;
     case 's': // state
-      if (debug) {
-        if (clientConnected) {
-          updateWS(code);
-        }
-        if (googleEnabled) {
-          updateGoogle(code);
-        }
+      if (debug && googleEnabled) {
+        updateGoogle(code);
       }
       break;
     default:
@@ -180,32 +174,40 @@ void broadcastChange(char code) {
 }
 
 void updateWS(char code) {
-  String message;
+//  String message;
   switch(code) {
     case 'd': // doorStatus, motorOn, or motorDir
       if (motorOn) {
         if (motorDir) {
-          webSocket.broadcastTXT("opening " + String(motorTime));
+          message = F("opening ");
         } else {
-          webSocket.broadcastTXT("closing " + String(motorTime));
+          message = F("closing ");
         }
+        message += int(motorTime);
       } else if (doorStatus) {
-        webSocket.broadcastTXT("open");
+        message = F("open");
       } else {
-        webSocket.broadcastTXT("closed");
+        message = F("closed");
       }
+      webSocket.broadcastTXT(message);
       break;
     case 'f': // flockStatus
-      webSocket.broadcastTXT("flock " + String(flockStatus));
+      message = F("flock ");
+      message += flockStatus;
+      webSocket.broadcastTXT(message);
       break; 
     case 't': // update time only
       if (DATETIME_RDY) {
-        String timeStr = (CURRENT_HOUR > 12) ? String(CURRENT_HOUR - 12) : String(CURRENT_HOUR);
-        timeStr += F(":");
-        timeStr += (CURRENT_MINUTE < 10) ? "0" + String(CURRENT_MINUTE) : String(CURRENT_MINUTE);
-        timeStr += F(" ");
-        timeStr += (CURRENT_HOUR > 12) ? "PM" : "AM";
-        webSocket.broadcastTXT("time: " + timeStr);
+        message = F("time: ");
+        message += (CURRENT_HOUR > 12) ? CURRENT_HOUR - 12 : CURRENT_HOUR;
+        message += ':';
+        if (CURRENT_MINUTE < 10) {
+          message += '0';
+        }
+        message += CURRENT_MINUTE;
+        message += ' ';
+        message += (CURRENT_HOUR > 12) ? F("PM") : F("AM");
+        webSocket.broadcastTXT(message);
       }
       break;
     case 'n': // sun times / date (only sent once per client session)
@@ -213,21 +215,39 @@ void updateWS(char code) {
      *  data ready, send to connected clients
      */
       if (DATETIME_RDY) {
-        String timeStr = (CURRENT_HOUR > 12) ? String(CURRENT_HOUR - 12) : String(CURRENT_HOUR);
-        timeStr += F(":");
-        timeStr += (CURRENT_MINUTE < 10) ? "0" + String(CURRENT_MINUTE) : String(CURRENT_MINUTE);
-        timeStr += F(" ");
-        timeStr += (CURRENT_HOUR > 12) ? "PM" : "AM";
-        String dateStr = String(CURRENT_MONTH) + F("/") + String(CURRENT_DATE) + F("/") + String(CURRENT_YEAR);
-        webSocket.broadcastTXT("date: " + dateStr);
-        webSocket.broadcastTXT("time: " + timeStr);
+        message = F("date: ");
+        message += String(CURRENT_MONTH) + '/' + String(CURRENT_DATE) + '/' + CURRENT_YEAR;
+        webSocket.broadcastTXT(message);
+        message = F("time: ");
+        message += (CURRENT_HOUR > 12) ? String(CURRENT_HOUR - 12) : String(CURRENT_HOUR);
+        message += F(":");
+        if (CURRENT_MINUTE < 10) {
+          message += '0';
+        }
+        message += CURRENT_MINUTE ;
+        message += ' ';
+        message += (CURRENT_HOUR > 12) ? F("PM") : F("AM");
+//        String dateStr = String(CURRENT_MONTH) + F("/") + String(CURRENT_DATE) + F("/") + String(CURRENT_YEAR);
+//        webSocket.broadcastTXT("date: " + dateStr);
+        webSocket.broadcastTXT(message);
       }    
       if (SUNRISE_RDY && SUNSET_RDY) {
-        String minute_R = (SUNRISE_MINUTE < 10) ? "0" + String(SUNRISE_MINUTE) : String(SUNRISE_MINUTE);
-        String minute_S = (SUNSET_MINUTE < 10) ? "0" + String(SUNSET_MINUTE) : String(SUNSET_MINUTE);
-        String sunriseStr = String(SUNRISE_HOUR) + ":" + minute_R + " AM";
-        String sunsetStr = String(SUNSET_HOUR - 12) + ":" + minute_S + " PM";
-        webSocket.broadcastTXT("sunrise/sunset: " + sunriseStr + "/" + sunsetStr);
+        message = F("sunrise/sunset: ");
+        message += String(SUNRISE_HOUR) + ':';// + minute_R + F(" AM");
+        if (SUNRISE_MINUTE < 10) {
+          message += '0';
+        }
+        message += String(SUNRISE_MINUTE) + F(" AM/");
+        message += String(SUNSET_HOUR - 12) + ':';
+        if (SUNSET_MINUTE < 10) {
+          message += '0';
+        }
+        message += String(SUNSET_MINUTE) + F(" PM");
+//        String minute_R =  ? "0" + String(SUNRISE_MINUTE) : String(SUNRISE_MINUTE);
+//        String minute_S = (SUNSET_MINUTE < 10) ? "0" + String(SUNSET_MINUTE) : String(SUNSET_MINUTE);
+//        String sunriseStr = String(SUNRISE_HOUR) + ":" + minute_R + " AM";
+//        String sunsetStr = String(SUNSET_HOUR - 12) + ":" + minute_S + " PM";
+        webSocket.broadcastTXT(message);
       }
       break;
     case 'c': // autoMode
@@ -263,7 +283,9 @@ void updateWS(char code) {
       webSocket.broadcastTXT(message);
       break;
     case 's': // state
-      webSocket.broadcastTXT("state " + String(int(state)));
+      message = F("state ");
+      message += int(state);
+      webSocket.broadcastTXT(message);
       break;
     default:
       break;  
@@ -271,45 +293,45 @@ void updateWS(char code) {
 }
 
 void updateGoogle(char code) {
-  String message;
+//  String message;
   switch(code) {
     case 'd': // doorStatus, motorOn, or motorDir
       if (!motorOn) {
         if (doorStatus) {
-          message = F("open");
+          message = F("do");
         } else {
-          message = F("closed");
-        }
+          message = F("dc");
+        }      
+        postToGoogle(message);
       }
-      postToGoogle(message);
       break;
     case 't': // sun times / date-time
     case 'n':
       break;
     case 'c': // autoMode
       if (autoMode) {
-        message = F("ma");
+        message = F("ca");
       } else {
-        message = F("mm");
+        message = F("cm");
       }
       postToGoogle(message);
       break;
     case 'm': // motorInterval
-      message = F("motor open: ");
+      message = F("mo: ");
       message += String(motorInterval_open);
-      message += F(" / close ");
+      message += F("  mc: ");
       message += String(motorInterval_close);
       postToGoogle(message);
       break;
     case 'e': // offsets
-      message = F("offset open: ");
+      message = F("eo: ");
       message += String(offset_open);
-      message += F(" / close ");
+      message += F("  ec: ");
       message += String(offset_close);
       postToGoogle(message);
       break;
     case 'f': // flockStatus
-      message = F("flock status: ");
+      message = F("flock: ");
       message += String(flockStatus);
       postToGoogle(message);
       break; 
@@ -323,7 +345,7 @@ void updateGoogle(char code) {
       break;
     case 's': // state
       message = F("state ");
-      message += String(int(state));  
+      message += int(state);  
       postToGoogle(message);
       break;
     default:

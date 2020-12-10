@@ -6,12 +6,12 @@
 bool timeToOpen() {
   // if it is [offset_open] minutes til sunrise
   uint8_t openHour, openMin;
-  if (SUNRISE_MINUTE >= offset_open) { // eg 20 minutes before 6:45
+  if (offset_open > SUNRISE_MINUTE) { // eg 45 minutes before 6:20
+    openMin = 60 - (offset_open - SUNRISE_MINUTE);
+    openHour = SUNRISE_HOUR-1;
+  } else {
     openMin = SUNRISE_MINUTE - offset_open;
     openHour = SUNRISE_HOUR;
-  } else {
-    openMin = (SUNRISE_MINUTE - offset_open) % 60;
-    openHour = SUNRISE_HOUR-1;
   }
   if (CURRENT_HOUR >= openHour && CURRENT_MINUTE >= openMin) {
     return true;
@@ -40,7 +40,7 @@ bool timeToClose() {
 void updateLocalTime() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
-    Serial.println(F("Failed to obtain time"));
+//    Serial.println(F("Failed to obtain time"));
     DATETIME_RDY = 0;
     return;
   }
@@ -79,10 +79,11 @@ void getSunTimes() {
     parseUTCString(sunrise, sunriseVals);
     parseUTCString(sunset, sunsetVals);
     broadcastChange('n');
-  } else {
-    Serial.print(F("Error on HTTP request: "));
-    Serial.println(httpCode);
   }
+//  } else {
+//    Serial.print(F("Error on HTTP request: "));
+//    Serial.println(httpCode);
+//  }
 }
 
 // unpack the string from sunrise-sunset API

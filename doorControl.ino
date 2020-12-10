@@ -21,10 +21,6 @@ bool openDoor() {
 
 // start closing door
 bool closeDoor() {
-  if (!motorOn) {
-    motorTime = 0;
-    motorStartMillis = millis(); // log when the motor started
-  }
   motorDir = false;
   motor.drive(CLOSE_DR); 
   return true;
@@ -50,6 +46,6 @@ void updateDoorStatus() {
 
 void updateAutoMode() {
   autoMode = !autoMode;
-  stopDoor();
+  motorOn = stopDoor();
   broadcastChange('c');
 }

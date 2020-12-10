@@ -25,6 +25,7 @@
 #define OFFSET_A 1 // Value can be 1 or -1
 #define MANUAL_UP 19    // GPIO for manual motor control
 #define MANUAL_DOWN 23  // 2 pins, one for each dir
+//#define EMERGENCY_STOP 36 // red button on breadboard, emergency stop
 #define OPEN_DR 255
 #define CLOSE_DR -255   // motor.drive() vals for open/close
 
@@ -65,9 +66,9 @@ char flockStatus = 'c'; // flock status, changed by user in UI
   // 'r' = in the run
   // 'y' = in the yard 
 // DEFAULT settings - user can adjust motor times and offsets in UI
-uint8_t motorInterval_open = 35;
-uint8_t motorInterval_close = 20;
-uint8_t offset_open = 20;
+uint8_t motorInterval_open = 25;
+uint8_t motorInterval_close = 15;
+uint8_t offset_open = 40;
 uint8_t offset_close = 30;
 
 bool googleEnabled = true;
@@ -81,8 +82,8 @@ unsigned long updateInterval;
 
 // motor state machine
 Motor motor = Motor(AIN1, AIN2, PWMA, OFFSET_A, STBY, 5000, 8, 1);
-uint8_t motorTime = 0; // how many seconds the motor has been running
-unsigned long motorStartMillis = 0; // when the motor was started
+uint8_t motorTime; // how many seconds the motor has been running
+unsigned long motorStartMillis; // when the motor was started
 unsigned long motorIntMillis;
 bool motorOn = false;
 bool motorDir = true; // true = opening, false = closing
@@ -121,6 +122,7 @@ bool clientConnected = false;
   // when client connected, update every minute for client UI
   // otherwise, just update every hour
 //char WSOutBuffer[50];
+String message;
 
 // HTTP port for server
 const uint8_t port = 80;
@@ -131,9 +133,11 @@ WebSocketsServer webSocket(WSport);
 
 void setup() {
 //  Serial.println(millis());
-  Serial.begin(115200);
+//  Serial.begin(115200);
   pinMode(MANUAL_UP, INPUT_PULLUP);
   pinMode(MANUAL_DOWN, INPUT_PULLUP);
+  message.reserve(50);
+//  pinMode(EMERGENCY_STOP, INPUT);
   
   if (!SPIFFS.begin()) {
 //    Serial.println("error occured while mounting SPIFFS");
@@ -141,22 +145,11 @@ void setup() {
   }
 
   WiFi.begin(ssid, password);
-//  Serial.println("connecting");
-
-  prevTimeMillis = millis();
   while (WiFi.status() != WL_CONNECTED) {
     currentMillis = millis();
   }
-  Serial.print(currentMillis - prevTimeMillis);
-  Serial.println(" ms to connect");
-
-//  Serial.println("SUCCESS!");
-//  Serial.print("server running at IP:\t");
-//  Serial.println(WiFi.localIP());
-  
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
-//  Serial.println("Websocket server started.");
 
   // loading page and assets
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
@@ -167,7 +160,6 @@ void setup() {
   });
   
   server.begin();
-//  Serial.println("Async HTTP server started.");
 
   // Init NTP and sunrise/sunset API connections
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
@@ -182,34 +174,70 @@ void setup() {
   if (CURRENT_HOUR > SUNSET_HOUR || CURRENT_HOUR < SUNRISE_HOUR-1) {
 //    Serial.println("entering night stage");
     state = STATE_NIGHT; // night time, door should be closed
-  } else if (CURRENT_HOUR == SUNRISE_HOUR-1) {
+  } else if (CURRENT_HOUR == SUNRISE_HOUR-2) {
 //    Serial.println("entering sunrise stage");
     state = STATE_SUNRISE; // sunrise, door should be open(ing)
-  } else if (CURRENT_HOUR > SUNRISE_HOUR-1 && CURRENT_HOUR < SUNSET_HOUR) {
+  } else if (CURRENT_HOUR > SUNRISE_HOUR-2 && CURRENT_HOUR < SUNSET_HOUR) {
 //    Serial.println("entering day stage");
     state = STATE_DAY; // day time, door should be open
   } else if (CURRENT_HOUR == SUNSET_HOUR) {
 //    Serial.println("entering sunset stage");
     state = STATE_SUNSET; // sunset, door should be close(ing)
   } 
-//  Serial.println(millis());
   if (googleEnabled) {
-    String postStatus = "ESP has booted into state ";
-    postStatus += int(state);
-    int response = postToGoogle(postStatus);  
-//    Serial.println(millis());
+    message = F("ESP has booted into state ");
+    message += int(state);
+    postToGoogle(message);
   }
 }
 
 void loop() {
-  webSocket.loop();
+//  if (digitalRead(EMERGENCY_STOP)) {
+//    motorOn = stopDoor();
+//  }
   currentMillis = millis();
+  webSocket.loop();
+  dayNightLoop();
+  
+  // motor state machine, only runs if motorOn = true
+  if (motorOn) {
+    // in auto mode only: stop the motor 
+    // and mark door open/close after motorInterval
+    if (autoMode && ((motorTime*1000) >= motorIntMillis)) {
+      motorOn = stopDoor();
+      updateDoorStatus();
+      if (doorStatus) {
+        flockStatus = 'r';
+      } else {
+        flockStatus = 'c';
+      }
+      broadcastChange('f');
+      return;
+    } else if ((currentMillis - motorStartMillis)/1000 >= motorTime) {
+      // either  auto or manual mode, if the motor was turned on, keep time
+      // on how long it runs for
+      motorTime++;
+      broadcastChange('d');
+    }
+  } else { // manual motor controls - physical buttons
+    if (digitalRead(MANUAL_UP) && digitalRead(MANUAL_DOWN)) {
+      // no manual commands
+      stopDoor();
+    } else if ((!digitalRead(MANUAL_UP)) && digitalRead(MANUAL_DOWN)) {
+      openDoor();
+    } else if (digitalRead(MANUAL_UP) && (!digitalRead(MANUAL_DOWN))) {
+      closeDoor();
+    }
+  }
+}
+
+void dayNightLoop() {
   // sunrise/sunset state machine
   switch (state) {
     case STATE_NIGHT: // night time, wait for sunrise
       updateInterval = (clientConnected) ? MINUTE_MILLIS : HOUR_MILLIS;
       if (DATETIME_RDY && SUNRISE_RDY) {
-        if (CURRENT_HOUR == SUNRISE_HOUR-1) {
+        if (CURRENT_HOUR == SUNRISE_HOUR-2) {
           // if it's less than 2 hours to sunrise, switch to state 2
           state = STATE_SUNRISE;
           broadcastChange('s');
@@ -219,24 +247,29 @@ void loop() {
       if (currentMillis - prevTimeMillis > updateInterval) {
         prevTimeMillis = currentMillis;
         updateLocalTime();
-        // update sunrise/sunset at 3:00AM local time
-        if (CURRENT_HOUR == 2) {
+        // update sunrise/sunset at midnight local time
+        if (CURRENT_HOUR == 0) {
           getSunTimes();
+          updateGoogle('c'); // post auto/manual
         }
       }
       break;
     case STATE_SUNRISE: // sunrise: open door
       updateInterval = MINUTE_MILLIS;
       if (currentMillis - prevTimeMillis > updateInterval) {
-//        Serial.println("waiting for the sun to say hello");
+        prevTimeMillis = currentMillis;
         updateLocalTime();
       }
       if (timeToOpen()) { // no offset: CURRENT_MINUTE >= SUNRISE_MINUTE 
-        if(autoMode) { 
+        if (googleEnabled) {
+          postToGoogle("time to auto open");
+        }
+        if (autoMode) { 
           motorIntMillis = motorInterval_open * 1000;
           motorStartMillis = millis();
           motorTime = 0;
           motorOn = openDoor();
+          updateDoorStatus();
         }
         state = STATE_DAY;
         broadcastChange('s');
@@ -264,55 +297,23 @@ void loop() {
         updateLocalTime();
       }
       if (timeToClose()) {
+        if (googleEnabled) {
+          message = F("time to auto close");
+          postToGoogle(message);
+        }
         if (autoMode) {
           motorIntMillis = motorInterval_close * 1000;
           motorStartMillis = millis();
           motorTime = 0;
           motorOn = closeDoor();
+          updateDoorStatus();
         }
         state = STATE_NIGHT;
-        for (int i = 0; i < 3; i++) {
-          sunsetVals[i] = 0;
-          sunriseVals[i] = 0;
-        }
         broadcastChange('s');
         return;
       }
       break;
     default:
       break;
-  }
-  
-  // motor state machine, only runs if motorOn = true
-  if (motorOn) {
-    // in auto mode only: stop the motor 
-    // and mark door open/close after motorInterval
-    if (autoMode && motorTime*1000 >= motorIntMillis) {
-//    if (autoMode && currentMillis - motorStartMillis > motorIntMillis) {
-      motorOn = stopDoor();
-      updateDoorStatus();
-      if (doorStatus) {
-        flockStatus = 'r';
-      } else {
-        flockStatus = 'c';
-      }
-      broadcastChange('f');
-      return;
-    } 
-    if (currentMillis - motorStartMillis >= motorTime*1000) {
-      motorTime++;
-      updateDoorStatus();
-    }
-  } else { // manual motor controls - physical buttons
-    if (digitalRead(MANUAL_UP) && digitalRead(MANUAL_DOWN)) {
-      // no manual commands
-      stopDoor();
-    } else if ((!digitalRead(MANUAL_UP)) && digitalRead(MANUAL_DOWN)) {
-//      Serial.println("open button");
-      openDoor();
-    } else if (digitalRead(MANUAL_UP) && (!digitalRead(MANUAL_DOWN))) {
-//      Serial.println("close button");
-      closeDoor();
-    }
   }
 }

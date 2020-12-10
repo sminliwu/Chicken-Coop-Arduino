@@ -64,30 +64,25 @@ $(document).ready(function () {
 		ws.send('f' + evt.target.value);
 	})
 	$('#o').click(function() {
-		// var doorStarted = ($('#open').html() == "Open");
 		if ($('#o').html() == "Open") {
 			ws.send('o');
 			$('#o').html("Stop");
-			$('#c').disabled = true;
-			doorStarted = true;
+			$('#c').prop("disabled",true);
 		} else {
 			ws.send('h');
 			$('#o').html("Open");
-			$('#c').disabled = false;
-			doorStarted = false;
+			$('#c').prop("disabled",false);
 		}
 	});
 	$('#c').click(function() {
 		if ($('#c').html() == "Close") {
 			ws.send('c');
 			$('#c').html("Stop");
-			$('#o').disabled = true;
-			doorStarted = true;
+			$('#o').prop("disabled",true);
 		} else {
 			ws.send('h');
 			$('#c').html("Close");
-			$('#o').disabled = true;
-			doorStarted = false;
+			$('#o').prop("disabled",false);
 		}
 	});
 	$('#mo').change(function() {
@@ -96,10 +91,10 @@ $(document).ready(function () {
 	$('#mc').change(function() {
 		ws.send('mc' + $('#mc').val());
 	})
-	$('#fo').change(function() {
+	$('#eo').change(function() {
 		ws.send('eo' + $('#eo').val());
 	})
-	$('#fc').change(function() {
+	$('#ec').change(function() {
 		ws.send('ec' + $('#ec').val());
 	})
 	$('#so').click(function() {

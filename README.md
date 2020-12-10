@@ -72,7 +72,7 @@ Category 		Assc. Variables 		Broadcast Change?
 -------------------------------------------------------------------
 door (d) 		doorStatus 				y 	d 		y = yes always
 				motorOn					 	 		d = debug only
-				motorDir 				 	
+				motorDir 				 			x = never
 control (c) 	autoMode 				y 	y
 motor time (m)	motorInterval_open		y 	y 
 				motorInterval_close
@@ -81,8 +81,8 @@ auto-offset (e)	offset_open				y 	y
 flock (f) 		flockStatus 			y 	y
 google (g) 		googleEnabled			y 	y
 state (s) 		state 					d 	d
-time (t) 		time 					y 	d
-day-night (n)	sunrise/sunset 			y 	d
+time (t) 		time 					y 	x
+day-night (n)	sunrise/sunset 			y 	x
 				date 				 	
 
 ## ESP32-Client Communications
@@ -122,8 +122,9 @@ e[o/c] \[##\]								Client adjusted offset
 (ESP sends HTTP POST requests to a Google web app)
 ESP sends			Google response
 ------------------------------------------------------------------
-m[a/m] 				mode: switches calendar events to auto/manual
-f[c/r/y] ### 		logs the change in flock status
+c[a/m] 				control mode: switches calendar events 
+					to auto/manual
+f[c/r/y] ### 		logs the change in flock status with IP address
 
 # References
 - https://www.instructables.com/id/Irrigation-Using-Google-Calendar/
