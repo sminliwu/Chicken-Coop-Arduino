@@ -32,7 +32,7 @@ Automation/reminder system for a backyard chicken coop.
 - Uncap food bin by UNSCREWING lids
 - Check food + water levels, replenish if needed
 - Check for eggs
-- (optional, or at least not every day) Open main door to let them out in yard
+- (doesn't need to happen every day) Open main door to let them out in yard
 
 #### Locking Up (Night)
 - Close run door
@@ -55,8 +55,10 @@ Automation/reminder system for a backyard chicken coop.
 EXISTING:
 - NTP date/time
 - Sunrise-sunset
+- Google Apps Script
+	- Google Calendar 
+	- Google Sheets
 IN PROGRESS:
-- Google App Script running as web app: Google Calendar + Sheets
 POSSIBLE:
 - Discord bot?
 
@@ -125,13 +127,14 @@ ESP sends			Google response
 c[a/m] 				control mode: switches calendar events 
 					to auto/manual
 f[c/r/y] ### 		logs the change in flock status with IP address
+[other data] 		logs the message in a spreadsheet
 
 # References
-- https://www.instructables.com/id/Irrigation-Using-Google-Calendar/
-- https://randomnerdtutorials.com/esp32-date-time-ntp-client-server-arduino/
-- https://randomnerdtutorials.com/esp32-http-get-post-arduino/
-- Library I'm using to control my motor - https://github.com/sparkfun/SparkFun_TB6612FNG_Arduino_Library
+- Relevant project with outdoor automation and Google calendar - https://www.instructables.com/id/Irrigation-Using-Google-Calendar/
+- Using NTP date-time with ESP32 Arduino - https://randomnerdtutorials.com/esp32-date-time-ntp-client-server-arduino/
+- HTTP GET and POST requests with ESP32 Arduino - https://randomnerdtutorials.com/esp32-http-get-post-arduino/
+- Library for motor control - https://github.com/sparkfun/SparkFun_TB6612FNG_Arduino_Library
 - Tutorial for using Google script - https://www.dfrobot.com/blog-917.html
-- https://developers.google.com/apps-script
-- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
+- Google Apps Script reference - https://developers.google.com/apps-script
+- Date class (Javascript) reference - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
 - https://medium.com/@dtkatz/3-ways-to-fix-the-cors-error-and-how-access-control-allow-origin-works-d97d55946d9
