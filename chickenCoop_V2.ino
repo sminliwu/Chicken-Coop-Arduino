@@ -196,6 +196,7 @@ void loop() {
 //    motorOn = stopDoor();
 //  }
   currentMillis = millis();
+  wifiLoop();
   webSocket.loop();
   dayNightLoop();
   
@@ -261,9 +262,9 @@ void dayNightLoop() {
         updateLocalTime();
       }
       if (timeToOpen()) { // no offset: CURRENT_MINUTE >= SUNRISE_MINUTE 
-        if (googleEnabled) {
-          postToGoogle("time to auto open");
-        }
+//        if (googleEnabled) {
+//          postToGoogle("time to auto open");
+//        }
         if (autoMode) { 
           motorIntMillis = motorInterval_open * 1000;
           motorStartMillis = millis();
@@ -297,10 +298,10 @@ void dayNightLoop() {
         updateLocalTime();
       }
       if (timeToClose()) {
-        if (googleEnabled) {
-          message = F("time to auto close");
-          postToGoogle(message);
-        }
+//        if (googleEnabled) {
+//          message = F("time to auto close");
+//          postToGoogle(message);
+//        }
         if (autoMode) {
           motorIntMillis = motorInterval_close * 1000;
           motorStartMillis = millis();
@@ -315,5 +316,16 @@ void dayNightLoop() {
       break;
     default:
       break;
+  }
+}
+
+void wifiLoop() {
+  static long lastConnectAttempt;
+  if (currentMillis - lastConnectAttempt >= MINUTE_MILLIS) {
+    if (WiFi.status() != WL_CONNECTED) {
+      WiFi.disconnect();
+      WiFi.begin(ssid, password);
+      lastConnectAttempt = currentMillis;
+    }
   }
 }

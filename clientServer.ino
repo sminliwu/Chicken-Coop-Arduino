@@ -69,22 +69,16 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
         } else if (payload[0] == 'm') {
           // user changed motorInterval thru client interface
           // client will send "m[o/c][seconds]"
-          //          Serial.printf("%s\n", payload);
           char* param = (char*) payload + 2;
-          //          Serial.printf("motor %s\n", param);
-          //          Serial.println("motor interval: " + motorInterval);
           if (payload[1] == 'o') {
             motorInterval_open = String(param).toInt();
           } else {
             motorInterval_close = String(param).toInt();
           }
-          //          Serial.printf("motor interval: %d\n", motorInterval);
           broadcastChange('m');
         } else if (payload[0] == 'e') {
           // user adjusted open/close offsets
           char* param = (char*) payload + 2;
-          //          Serial.printf("motor %s\n", param);
-          //          Serial.println("motor interval: " + motorInterval);
           if (payload[1] == 'o') {
             offset_open = String(param).toInt();
           } else {
@@ -99,24 +93,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
         }
         break;
       }
-//      case WStype_BIN:
-//        Serial.println("WStype_BIN");
-//        break;
-//      case WStype_ERROR:
-//        Serial.println("WStype_ERROR");
-//        break;
-//      case WStype_FRAGMENT_TEXT_START:
-//        Serial.println("WStype_FRAGMENT_TEXT_START");
-//        break;
-//      case WStype_FRAGMENT_BIN_START:
-//        Serial.println("WStype_FRAGMENT_BIN_START");
-//        break;
-//      case WStype_FRAGMENT:
-//        Serial.println("WStype_FRAGMENT");
-//        break;
-//      case WStype_FRAGMENT_FIN:
-//        Serial.println("WStype_FRAGMENT_FIN");
-//        break;
       default:
 //        Serial.println("what happened" + type);
         break;
@@ -198,15 +174,7 @@ void updateWS(char code) {
       break; 
     case 't': // update time only
       if (DATETIME_RDY) {
-        message = F("time: ");
-        message += (CURRENT_HOUR > 12) ? CURRENT_HOUR - 12 : CURRENT_HOUR;
-        message += ':';
-        if (CURRENT_MINUTE < 10) {
-          message += '0';
-        }
-        message += CURRENT_MINUTE;
-        message += ' ';
-        message += (CURRENT_HOUR > 12) ? F("PM") : F("AM");
+        buildTimeString();
         webSocket.broadcastTXT(message);
       }
       break;
@@ -218,17 +186,7 @@ void updateWS(char code) {
         message = F("date: ");
         message += String(CURRENT_MONTH) + '/' + String(CURRENT_DATE) + '/' + CURRENT_YEAR;
         webSocket.broadcastTXT(message);
-        message = F("time: ");
-        message += (CURRENT_HOUR > 12) ? String(CURRENT_HOUR - 12) : String(CURRENT_HOUR);
-        message += F(":");
-        if (CURRENT_MINUTE < 10) {
-          message += '0';
-        }
-        message += CURRENT_MINUTE ;
-        message += ' ';
-        message += (CURRENT_HOUR > 12) ? F("PM") : F("AM");
-//        String dateStr = String(CURRENT_MONTH) + F("/") + String(CURRENT_DATE) + F("/") + String(CURRENT_YEAR);
-//        webSocket.broadcastTXT("date: " + dateStr);
+        buildTimeString();
         webSocket.broadcastTXT(message);
       }    
       if (SUNRISE_RDY && SUNSET_RDY) {
@@ -243,10 +201,6 @@ void updateWS(char code) {
           message += '0';
         }
         message += String(SUNSET_MINUTE) + F(" PM");
-//        String minute_R =  ? "0" + String(SUNRISE_MINUTE) : String(SUNRISE_MINUTE);
-//        String minute_S = (SUNSET_MINUTE < 10) ? "0" + String(SUNSET_MINUTE) : String(SUNSET_MINUTE);
-//        String sunriseStr = String(SUNRISE_HOUR) + ":" + minute_R + " AM";
-//        String sunsetStr = String(SUNSET_HOUR - 12) + ":" + minute_S + " PM";
         webSocket.broadcastTXT(message);
       }
       break;
@@ -266,7 +220,7 @@ void updateWS(char code) {
       message += String(motorInterval_close);
       webSocket.broadcastTXT(message);
       break;
-    case 'e': // motorInterval
+    case 'e': // offsets
       message = F("eo ");
       message += String(offset_open);
       webSocket.broadcastTXT(message);
@@ -293,7 +247,6 @@ void updateWS(char code) {
 }
 
 void updateGoogle(char code) {
-//  String message;
   switch(code) {
     case 'd': // doorStatus, motorOn, or motorDir
       if (!motorOn) {
@@ -315,6 +268,10 @@ void updateGoogle(char code) {
         message = F("cm");
       }
       postToGoogle(message);
+      if (autoMode) {
+        updateGoogle('e');
+        updateGoogle('m');
+      }
       break;
     case 'm': // motorInterval
       message = F("mo: ");

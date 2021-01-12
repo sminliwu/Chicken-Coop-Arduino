@@ -113,6 +113,18 @@ void parseUTCString(String UTCString, int (&buffArray)[3]) {
   buffArray[2] = -1; // error when hour/min is negative
 }
 
+void buildTimeString() {
+  message = F("time: ");
+  message += (CURRENT_HOUR > 12) ? CURRENT_HOUR - 12 : CURRENT_HOUR;
+  message += ':';
+  if (CURRENT_MINUTE < 10) {
+    message += '0';
+  }
+  message += CURRENT_MINUTE;
+  message += ' ';
+  message += (CURRENT_HOUR > 12) ? F("PM") : F("AM");
+}
+
 //void printLocalTime() {
 //  char DST;
 //  if (DATETIME_RDY > 0) {
