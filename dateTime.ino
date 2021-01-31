@@ -52,9 +52,7 @@ void updateLocalTime() {
   CURRENT_MINUTE = timeinfo.tm_min;
   DST_FLAG = timeinfo.tm_isdst;
   
-  prevTimeMillis = currentMillis;
-  currentMillis = millis();
-
+  prevTime = currentTime;
   broadcastChange('t');
 }
 
@@ -89,22 +87,23 @@ void getSunTimes() {
 // unpack the string from sunrise-sunset API
 // input format: "HH:MM:SS XM" in UTC or "H:MM:SS XM"
 // output: [ready, hour, min] in 24-hour Mountain time
-void parseUTCString(String UTCString, int (&buffArray)[3]) {
-  int hour, minute;
-  int firstColon = UTCString.indexOf(':');
+void parseUTCString(String UTCString, uint8_t (&buffArray)[3]) {
+  uint8_t hour, minute;
+  uint8_t firstColon = UTCString.indexOf(':');
   if (firstColon == 1 || firstColon == 2) {
     hour = UTCString.substring(0, firstColon).toInt();
     minute = UTCString.substring(firstColon+1, firstColon+3).toInt();
     char AMPM = (UTCString.charAt(firstColon+7));
-    int DST;
+    uint8_t DST;
     if (DST_FLAG > 0) { // if daylight savings
       DST = 1;} else {DST = 0;}
     if (AMPM == 'A') { // for AM, subtract GMT offset
-      buffArray[1] = (hour+24+TZ+DST) % 24;
+      hour = ((hour % 12)+24+TZ+DST) % 24;
     } else if (AMPM == 'P') {
-      buffArray[1] = (hour+36+TZ+DST) % 24;
+      hour = ((hour % 12)+12+TZ+DST) % 24;
     }
     buffArray[0] = 1;
+    buffArray[1] = hour;
     buffArray[2] = minute;
     return;
   }

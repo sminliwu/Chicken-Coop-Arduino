@@ -33,6 +33,7 @@
 #define MILLIS 1000
 #define HOUR_SEC 3600
 #define HOUR_MILLIS HOUR_SEC*MILLIS // 1 hour
+#define MINUTE_SEC 60
 #define MINUTE_MILLIS 60000 // 1 minute
 
 // data/state macros
@@ -76,15 +77,15 @@ bool googleEnabled = true;
   // requests with system status/user setting changes
 
 /* STATE MACHINE GLOBALS */
-unsigned long currentMillis; // check millisecond time
-unsigned long prevTimeMillis; // when the hour was last checked
-unsigned long updateInterval;
+unsigned long currentTime; // check millisecond time / 1000
+unsigned int prevTime; // when the hour was last checked
+unsigned int updateInterval;
 
 // motor state machine
 Motor motor = Motor(AIN1, AIN2, PWMA, OFFSET_A, STBY, 5000, 8, 1);
 uint8_t motorTime; // how many seconds the motor has been running
-unsigned long motorStartMillis; // when the motor was started
-unsigned long motorIntMillis;
+unsigned int motorStartTime; // when the motor was started
+unsigned int motorInterval;
 bool motorOn = false;
 bool motorDir = true; // true = opening, false = closing
 
@@ -99,13 +100,11 @@ char state = 'R'; // state is 'R' in setup/reset state,
 // from sunrise-sunset API, lat/lng coords for Boulder, CO
 const char* sunRiseSetAPI = 
   "https://api.sunrise-sunset.org/json?lat=40.014984&lng=-105.270546";
-int sunriseVals[3]; // format: [ready, hour, min]
-int sunsetVals[3];   
+uint8_t sunriseVals[3]; // format: [ready, hour, min]
+uint8_t sunsetVals[3];   
 
 // time stuff from NTP
 const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = TZ*HOUR_SEC; // GMT-7 is Mountain time
-const int   daylightOffset_sec = HOUR_SEC;
 int currentDateTime[7]; 
 /* format: [ready, year, month, date, hour, min, DST]
 - ready: 1 if array data is available, 0 if empty or error
@@ -146,7 +145,7 @@ void setup() {
 
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
-    currentMillis = millis();
+    currentTime = millis()/1000;
   }
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
@@ -162,6 +161,8 @@ void setup() {
   server.begin();
 
   // Init NTP and sunrise/sunset API connections
+  long gmtOffset_sec = TZ*HOUR_SEC; // GMT-7 is Mountain time
+  int daylightOffset_sec = HOUR_SEC;
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   updateLocalTime();
   getSunTimes();
@@ -195,26 +196,27 @@ void loop() {
 //  if (digitalRead(EMERGENCY_STOP)) {
 //    motorOn = stopDoor();
 //  }
-  currentMillis = millis();
+  currentTime = millis()/1000;
   wifiLoop();
   webSocket.loop();
   dayNightLoop();
   
   // motor state machine, only runs if motorOn = true
   if (motorOn) {
-    // in auto mode only: stop the motor 
-    // and mark door open/close after motorInterval
-    if (autoMode && ((motorTime*1000) >= motorIntMillis)) {
+    // stop the door automatically after motorInterval
+    //  in auto mode: always and mark door open/close
+    //  in manual mode: if the door starts off closed and has been opening
+    //    OR if the door starts off open and has been closing
+    //    (doorState != motorDir)
+    if (motorTime >= motorInterval) {
       motorOn = stopDoor();
       updateDoorStatus();
-      if (doorStatus) {
-        flockStatus = 'r';
-      } else {
-        flockStatus = 'c';
-      }
-      broadcastChange('f');
+      if (autoMode && doorStatus) {
+        flockStatus = 'r';      
+        broadcastChange('f');
+      } 
       return;
-    } else if ((currentMillis - motorStartMillis)/1000 >= motorTime) {
+    } else if (currentTime - motorStartTime >= motorTime) {
       // either  auto or manual mode, if the motor was turned on, keep time
       // on how long it runs for
       motorTime++;
@@ -236,7 +238,7 @@ void dayNightLoop() {
   // sunrise/sunset state machine
   switch (state) {
     case STATE_NIGHT: // night time, wait for sunrise
-      updateInterval = (clientConnected) ? MINUTE_MILLIS : HOUR_MILLIS;
+      updateInterval = (clientConnected) ? MINUTE_SEC : HOUR_SEC;
       if (DATETIME_RDY && SUNRISE_RDY) {
         if (CURRENT_HOUR == SUNRISE_HOUR-2) {
           // if it's less than 2 hours to sunrise, switch to state 2
@@ -245,8 +247,8 @@ void dayNightLoop() {
           return;
         }
       }
-      if (currentMillis - prevTimeMillis > updateInterval) {
-        prevTimeMillis = currentMillis;
+      if (currentTime - prevTime > updateInterval) {
+        prevTime = currentTime;
         updateLocalTime();
         // update sunrise/sunset at midnight local time
         if (CURRENT_HOUR == 0) {
@@ -256,9 +258,9 @@ void dayNightLoop() {
       }
       break;
     case STATE_SUNRISE: // sunrise: open door
-      updateInterval = MINUTE_MILLIS;
-      if (currentMillis - prevTimeMillis > updateInterval) {
-        prevTimeMillis = currentMillis;
+      updateInterval = MINUTE_SEC;
+      if (currentTime - prevTime > updateInterval) {
+        prevTime = currentTime;
         updateLocalTime();
       }
       if (timeToOpen()) { // no offset: CURRENT_MINUTE >= SUNRISE_MINUTE 
@@ -266,11 +268,12 @@ void dayNightLoop() {
 //          postToGoogle("time to auto open");
 //        }
         if (autoMode) { 
-          motorIntMillis = motorInterval_open * 1000;
-          motorStartMillis = millis();
-          motorTime = 0;
-          motorOn = openDoor();
-          updateDoorStatus();
+          startDoor(true, motorInterval_open);
+//          motorInterval = motorInterval_open;
+//          motorStartTime = currentTime;
+//          motorTime = 0;
+//          motorOn = openDoor();
+//          updateDoorStatus();
         }
         state = STATE_DAY;
         broadcastChange('s');
@@ -278,7 +281,7 @@ void dayNightLoop() {
       }
       break;
     case STATE_DAY: // day time, wait for sunset
-      updateInterval = (clientConnected) ? MINUTE_MILLIS : HOUR_MILLIS;
+      updateInterval = (clientConnected) ? MINUTE_SEC : HOUR_SEC;
       if (DATETIME_RDY && SUNSET_RDY) {
         if (CURRENT_HOUR == SUNSET_HOUR) {
           // if it's less than 1 hour to sunset, switch to state 2
@@ -287,14 +290,14 @@ void dayNightLoop() {
           return;
         }
       }
-      if (currentMillis - prevTimeMillis > updateInterval) {
+      if (currentTime - prevTime > updateInterval) {
         updateLocalTime();
       }
       break;
     case STATE_SUNSET: // sunset: close door, reset sunrise/sunset times
-      updateInterval = MINUTE_MILLIS;
-      if (currentMillis - prevTimeMillis > updateInterval) {
-        prevTimeMillis = currentMillis;
+      updateInterval = MINUTE_SEC;
+      if (currentTime - prevTime > updateInterval) {
+        prevTime = currentTime;
         updateLocalTime();
       }
       if (timeToClose()) {
@@ -303,11 +306,12 @@ void dayNightLoop() {
 //          postToGoogle(message);
 //        }
         if (autoMode) {
-          motorIntMillis = motorInterval_close * 1000;
-          motorStartMillis = millis();
-          motorTime = 0;
-          motorOn = closeDoor();
-          updateDoorStatus();
+          startDoor(false, motorInterval_close);
+//          motorInterval = motorInterval_close;
+//          motorStartTime = currentTime;
+//          motorTime = 0;
+//          motorOn = closeDoor();
+//          updateDoorStatus();
         }
         state = STATE_NIGHT;
         broadcastChange('s');
@@ -320,12 +324,12 @@ void dayNightLoop() {
 }
 
 void wifiLoop() {
-  static long lastConnectAttempt;
-  if (currentMillis - lastConnectAttempt >= MINUTE_MILLIS) {
+  static unsigned int lastConnectAttempt;
+  if (currentTime - lastConnectAttempt >= MINUTE_SEC) {
     if (WiFi.status() != WL_CONNECTED) {
       WiFi.disconnect();
       WiFi.begin(ssid, password);
-      lastConnectAttempt = currentMillis;
+      lastConnectAttempt = currentTime;
     }
   }
 }

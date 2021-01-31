@@ -26,18 +26,20 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
         //        Serial.printf("[%u] sent: %s\n", num, payload);
         if (payload[0] == 'o') {
           // clicked open button
+          startDoor(true, 30);
 //          motorIntMillis = motorInterval_open * 1000;
-          motorStartMillis = millis();
-          motorTime = 0;
-          motorOn = openDoor();
-          updateDoorStatus();
+//          motorStartTime = currentTime;
+//          motorTime = 0;
+//          motorOn = openDoor();
+//          updateDoorStatus();
         } else if (payload[0] == 'c') {
           // clicked close button
+          startDoor(false, 30);
 //          motorIntMillis = motorInterval_close * 1000;
-          motorStartMillis = millis();
-          motorTime = 0;
-          motorOn = closeDoor();
-          updateDoorStatus();
+//          motorStartTime = currentTime;
+//          motorTime = 0;
+//          motorOn = closeDoor();
+//          updateDoorStatus();
         } else if (payload[0] == 'h') {
           // released open/close button
           motorOn = stopDoor();
@@ -86,7 +88,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
           }
           broadcastChange('e');
         } else if (googleEnabled) {
-          String message = F("client message [");
+          message = F("client message [");
           message += webSocket.remoteIP(num).toString() + "]: ";
           message += String((char*)payload);
           postToGoogle(message);
@@ -214,15 +216,15 @@ void updateWS(char code) {
       break;
     case 'm': // motorInterval
       message = F("mo ");
-      message += String(motorInterval_open);
+      message += motorInterval_open;
       webSocket.broadcastTXT(message);
       message = F("mc ");
-      message += String(motorInterval_close);
+      message += motorInterval_close;
       webSocket.broadcastTXT(message);
       break;
     case 'e': // offsets
       message = F("eo ");
-      message += String(offset_open);
+      message += offset_open;
       webSocket.broadcastTXT(message);
       message = F("ec ");
       message += String(offset_close);

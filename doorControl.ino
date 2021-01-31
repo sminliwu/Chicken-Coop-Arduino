@@ -12,6 +12,18 @@
  *	- lets user manually set open/close status if hook was used
  */
 
+void startDoor(bool dir, uint8_t interval) {
+  motorInterval = interval;
+  motorStartTime = currentTime;
+  motorTime = 0;
+  if (dir) {
+    motorOn = openDoor();
+  } else {
+    motorOn = closeDoor();
+  }
+  updateDoorStatus();
+}
+
 // start running motor to open door
 bool openDoor() {
   motorDir = true;
