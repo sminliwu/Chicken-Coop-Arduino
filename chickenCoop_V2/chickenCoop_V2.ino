@@ -7,9 +7,10 @@
  */
 
 #include <WiFi.h>
-#include <TB6612_ESP32.h>
-#include <ESPAsyncWebServer.h>
-#include <WebSocketsServer.h>
+#include <TB6612_ESP32.h> // https://github.com/pablopeza/TB6612FNG_ESP32
+#include <ESPAsyncWebServer.h> //https://github.com/me-no-dev/ESPAsyncWebServer
+// depends on: https://github.com/me-no-dev/AsyncTCP
+#include <WebSocketsServer.h> // https://github.com/Links2004/arduinoWebSockets/
 #include <SPIFFS.h>
 #include <HTTPClient.h>
 #include "time.h" // https://randomnerdtutorials.com/esp32-date-time-ntp-client-server-arduino/
@@ -69,8 +70,8 @@ char flockStatus = 'c'; // flock status, changed by user in UI
 // DEFAULT settings - user can adjust motor times and offsets in UI
 uint8_t motorInterval_open = 25;
 uint8_t motorInterval_close = 15;
-uint8_t offset_open = 40;
-uint8_t offset_close = 30;
+int8_t offset_open = 40;
+int8_t offset_close = 30;
 
 bool googleEnabled = true;
   // when Google connection enabled, ESP will send POST 
@@ -97,11 +98,8 @@ char state = 'R'; // state is 'R' in setup/reset state,
 // data arrays: sunriseVals/sunsetVals, currentDateTime
 // ready byte = 1 when data available, 0 if empty or error
 
-// from sunrise-sunset API, lat/lng coords for Boulder, CO
-const char* sunRiseSetAPI = 
-  "https://api.sunrise-sunset.org/json?lat=40.014984&lng=-105.270546";
-uint8_t sunriseVals[3]; // format: [ready, hour, min]
-uint8_t sunsetVals[3];   
+int8_t sunriseVals[3]; // format: [ready, hour, min]
+int8_t sunsetVals[3];   
 
 // time stuff from NTP
 const char* ntpServer = "pool.ntp.org";
@@ -193,9 +191,6 @@ void setup() {
 }
 
 void loop() {
-//  if (digitalRead(EMERGENCY_STOP)) {
-//    motorOn = stopDoor();
-//  }
   currentTime = millis()/1000;
   wifiLoop();
   webSocket.loop();
@@ -264,16 +259,8 @@ void dayNightLoop() {
         updateLocalTime();
       }
       if (timeToOpen()) { // no offset: CURRENT_MINUTE >= SUNRISE_MINUTE 
-//        if (googleEnabled) {
-//          postToGoogle("time to auto open");
-//        }
         if (autoMode) { 
           startDoor(true, motorInterval_open);
-//          motorInterval = motorInterval_open;
-//          motorStartTime = currentTime;
-//          motorTime = 0;
-//          motorOn = openDoor();
-//          updateDoorStatus();
         }
         state = STATE_DAY;
         broadcastChange('s');
@@ -301,17 +288,8 @@ void dayNightLoop() {
         updateLocalTime();
       }
       if (timeToClose()) {
-//        if (googleEnabled) {
-//          message = F("time to auto close");
-//          postToGoogle(message);
-//        }
         if (autoMode) {
           startDoor(false, motorInterval_close);
-//          motorInterval = motorInterval_close;
-//          motorStartTime = currentTime;
-//          motorTime = 0;
-//          motorOn = closeDoor();
-//          updateDoorStatus();
         }
         state = STATE_NIGHT;
         broadcastChange('s');

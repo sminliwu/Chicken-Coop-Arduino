@@ -2,7 +2,6 @@
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
   switch (type) {
     case WStype_DISCONNECTED: // if a client disconnects
-//      Serial.printf("[%u] Client disconnected :(\n", num);
       if (webSocket.connectedClients() == 0) { // if no more clients
         clientConnected = false;
       }
@@ -12,7 +11,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
           clientConnected = true;
         }
         IPAddress ip = webSocket.remoteIP(num);
-//        Serial.printf("[%u] Connected from %d.%d.%d.%d\n", num, ip[0], ip[1], ip[2], ip[3]);
         updateWS('f');
         updateWS('d');
         updateWS('m');
@@ -23,23 +21,12 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
         break;
       }
     case WStype_TEXT: { // if new text data is received
-        //        Serial.printf("[%u] sent: %s\n", num, payload);
         if (payload[0] == 'o') {
           // clicked open button
           startDoor(true, 30);
-//          motorIntMillis = motorInterval_open * 1000;
-//          motorStartTime = currentTime;
-//          motorTime = 0;
-//          motorOn = openDoor();
-//          updateDoorStatus();
         } else if (payload[0] == 'c') {
           // clicked close button
           startDoor(false, 30);
-//          motorIntMillis = motorInterval_close * 1000;
-//          motorStartTime = currentTime;
-//          motorTime = 0;
-//          motorOn = closeDoor();
-//          updateDoorStatus();
         } else if (payload[0] == 'h') {
           // released open/close button
           motorOn = stopDoor();
@@ -96,7 +83,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
         break;
       }
       default:
-//        Serial.println("what happened" + type);
         break;
   }
 }
@@ -152,7 +138,6 @@ void broadcastChange(char code) {
 }
 
 void updateWS(char code) {
-//  String message;
   switch(code) {
     case 'd': // doorStatus, motorOn, or motorDir
       if (motorOn) {

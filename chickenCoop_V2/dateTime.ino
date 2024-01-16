@@ -5,7 +5,7 @@
 // helper functions for sunrise and sunset states w/ offsets
 bool timeToOpen() {
   // if it is [offset_open] minutes til sunrise
-  uint8_t openHour, openMin;
+  int8_t openHour, openMin;
   if (offset_open > SUNRISE_MINUTE) { // eg 45 minutes before 6:20
     openMin = 60 - (offset_open - SUNRISE_MINUTE);
     openHour = SUNRISE_HOUR-1;
@@ -22,7 +22,7 @@ bool timeToOpen() {
 
 bool timeToClose() {
   // if it is [offset_close] minutes after sunset
-  uint8_t closeHour, closeMin;
+  int8_t closeHour, closeMin;
   closeMin = SUNSET_MINUTE + offset_close;
   if (closeMin > 59) { // eg 20 minutes before 6:45
     closeMin = closeMin % 60;
@@ -68,26 +68,18 @@ void getSunTimes() {
     DeserializationError err = deserializeJson(doc, payload);
 
     if (err) {
-//      Serial.println("Parsing failed");
-//      Serial.println(err.c_str());
       return;
     }
-    String sunrise = doc["results"]["sunrise"];
-    String sunset = doc["results"]["sunset"];
-    parseUTCString(sunrise, sunriseVals);
-    parseUTCString(sunset, sunsetVals);
+    parseUTCString(doc["results"]["sunrise"], sunriseVals);
+    parseUTCString(doc["results"]["sunset"], sunsetVals);
     broadcastChange('n');
   }
-//  } else {
-//    Serial.print(F("Error on HTTP request: "));
-//    Serial.println(httpCode);
-//  }
 }
 
 // unpack the string from sunrise-sunset API
 // input format: "HH:MM:SS XM" in UTC or "H:MM:SS XM"
 // output: [ready, hour, min] in 24-hour Mountain time
-void parseUTCString(String UTCString, uint8_t (&buffArray)[3]) {
+void parseUTCString(String UTCString, int8_t (&buffArray)[3]) {
   uint8_t hour, minute;
   uint8_t firstColon = UTCString.indexOf(':');
   if (firstColon == 1 || firstColon == 2) {
@@ -141,7 +133,7 @@ void buildTimeString() {
 //      DST_FLAG);
 //  }
 //}
-//
+
 //void printSunTimes() {
 //  if (SUNRISE_RDY) {
 //    Serial.printf("Sunrise time - %u:%u\n", 
